@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingredient Cost Calculator</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for Poppins font and general body styling */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #FDF9E7; /* Soft Vanilla Cream */
+            color: #333333;
+            /* Ensure body is a flex container that fills the viewport */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Make body at least viewport height */
+        }
+        .main-content-wrapper {
+            flex-grow: 1; /* Allows this wrapper to take up available space, pushing footer down */
+            display: flex;
+            justify-content: center; /* Center content horizontally */
+            align-items: flex-start; /* Align content to the top within the wrapper */
+            padding: 1rem 1.5rem 2rem; /* p-4 sm:p-6 md:p-8 */
+        }
+        .container {
+            max-width: 90%; /* Fluid width for responsiveness */
+            width: 100%; /* Ensure it takes full width of its parent */
+        }
+        input[type="number"] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none; /* Chrome, Safari, Edge */
+            margin: 0;
+        }
+        /* Custom scrollbar for table on smaller screens */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+        /* Specific background colors from the Excel sheet */
+        .bg-header-blue {
+            background-color: #2C3E50; /* Dark blue from screenshot */
+        }
+        .bg-summary-green {
+            background-color: #F0F8E7; /* Light green from screenshot */
+        }
+        /* Custom color for the button */
+        .bg-custom-blue {
+            background-color: #1B1481;
+        }
+        .hover\:bg-custom-blue-dark:hover {
+            background-color: #150E6B; /* A slightly darker shade for hover effect */
+        }
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px; /* Adjusted max-width for policy text */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            text-align: left; /* Align text left for policies */
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-image {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .footer-link {
+            @apply text-gray-600 hover:text-gray-900 text-sm mx-2;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content-wrapper">
+        <div class="container bg-white p-6 sm:p-8 md:p-10 rounded-xl shadow-lg max-w-4xl">
+            <h1 class="text-3xl sm:text-4xl font-bold text-center mb-6 sm:mb-8 text-[#4A5568]">Ingredient Cost Calculator</h1>
+            <p class="text-center text-lg mb-8 text-[#6B7280]">
+                Calculate the comprehensive cost for your recipes.
+            </p>
+
+            <div id="feedback-message" class="text-center mb-4 text-sm font-semibold"></div>
+
+            <!-- Recipe Name and Yield Section -->
+            <div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+                <div class="flex items-center bg-header-blue text-white p-3 sm:p-4">
+                    <span class="w-1/3 font-semibold">Recipe Details</span>
+                    <span class="w-2/3"></span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <label for="recipe-name" class="w-1/3 font-semibold text-[#4A5568]">Recipe Name:</label>
+                    <input type="text" id="recipe-name" value="" placeholder="e.g., Sourdough Loaf"
+                           class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]">
+                </div>
+                <div class="flex items-center p-3 sm:p-4 bg-summary-green">
+                    <label for="recipe-yield" class="w-1/3 font-semibold text-[#4A5568]">Recipe Yield:</label>
+                    <input type="number" id="recipe-yield" value="0"
+                           class="w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                           min="0" step="1">
+                </div>
+            </div>
+
+            <!-- Ingredients Table -->
+            <div class="table-wrapper mb-6">
+                <table class="w-full text-left border-collapse rounded-lg overflow-hidden">
+                    <thead class="bg-header-blue text-white">
+                        <tr>
+                            <th class="p-3 sm:p-4 border-b border-gray-200 rounded-tl-lg">Ingredient</th>
+                            <th class="p-3 sm:p-4 border-b border-gray-200">Unit Cost</th>
+                            <th class="p-3 sm:p-4 border-b border-gray-200">Unit Type</th>
+                            <th class="p-3 sm:p-4 border-b border-gray-200">Quantity Used</th>
+                            <th class="p-3 sm:p-4 border-b border-gray-200">Cost per Recipe (Ingredient)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ingredient-table-body">
+                        <!-- Ingredient rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 text-center mb-8">
+                <button id="add-ingredient-btn" class="bg-custom-blue hover:bg-custom-blue-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Add Ingredient
+                </button>
+                <p class="mt-4 text-center text-xs text-[#6B7280]">
+                    Note: Unit costs and quantities should align with the specified unit types (e.g., if Unit Type is 'per lb', Unit Cost is $/lb and Quantity Used is in lb).
+                </p>
+            </div>
+
+            <!-- Cost Summary Section -->
+            <div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+                <div class="flex items-center bg-header-blue text-white p-3 sm:p-4">
+                    <span class="w-1/2 font-semibold">Cost Summary</span>
+                    <span class="w-1/2"></span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Ingredient Cost Per Yield:</span>
+                    <span id="ingredient-cost-per-yield" class="w-1/2 text-right">$0.00</span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Ingredient Cost Per Unit:</span>
+                    <span id="ingredient-cost-per-loaf" class="w-1/2 text-right">$0.00</span>
+                </div>
+
+                <!-- Labour Section -->
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200">
+                    <span class="w-1/4 font-semibold text-[#4A5568]">Labour</span>
+                    <input type="number" id="labour-unit-cost" value="0"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE] mr-2"
+                           min="0" step="0.01">
+                    <input type="text" id="labour-unit-type" value="hour"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE] mr-2">
+                    <input type="number" id="labour-quantity-used" value="0"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                           min="0" step="0.01">
+                    <span id="labour-cost" class="w-1/4 text-right ml-2 font-semibold">$0.00</span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Labour Cost per Unit:</span>
+                    <span id="labour-for-total-quantity" class="w-1/2 text-right">$0.00</span>
+                </div>
+
+                <!-- Packaging Section -->
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200">
+                    <span class="w-1/4 font-semibold text-[#4A5568]">Packaging</span>
+                    <input type="number" id="packaging-unit-cost" value="0"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE] mr-2"
+                           min="0" step="0.00001">
+                    <input type="text" id="packaging-unit-type" value="piece"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE] mr-2">
+                    <input type="number" id="packaging-quantity-used" value="0"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                           min="0" step="0.01">
+                    <span id="packaging-cost" class="w-1/4 text-right ml-2 font-semibold">$0.00</span>
+                </div>
+
+                <!-- Overhead Cost Section (New) -->
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200">
+                    <span class="w-1/4 font-semibold text-[#4A5568]">Overhead (%)</span>
+                    <input type="number" id="overhead-percentage" value="30" placeholder="e.g., 30"
+                           class="w-1/4 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE] mr-2"
+                           min="0" step="1">
+                    <span class="w-1/4"></span> <!-- Empty space to align -->
+                    <span class="w-1/4"></span> <!-- Empty space to align -->
+                    <span id="overhead-cost" class="w-1/4 text-right ml-2 font-semibold">$0.00</span>
+                </div>
+
+
+                <!-- Total Cost and Cost Per Unit -->
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Total Cost:</span>
+                    <span id="total-cost-summary" class="w-1/2 text-right">$0.00</span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 bg-summary-green rounded-b-lg">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Cost Per Unit:</span>
+                    <span id="cost-per-unit" class="w-1/2 text-right text-red-600 font-bold">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Pricing & Profit Section -->
+            <div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+                <div class="flex items-center bg-header-blue text-white p-3 sm:p-4">
+                    <span class="w-1/2 font-semibold">Pricing & Profit</span>
+                    <span class="w-1/2"></span>
+                </div>
+                <div class="flex items-center p-3 sm:p-4 border-b border-gray-200 bg-summary-green">
+                    <label for="profit-margin" class="w-1/2 font-semibold text-[#4A5568]">Desired Profit Margin (%):</label>
+                    <input type="number" id="profit-margin" value="0" placeholder="e.g., 50"
+                           class="w-1/2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                           min="0" step="1">
+                </div>
+                <div class="flex items-center p-3 sm:p-4 bg-summary-green rounded-b-lg">
+                    <span class="w-1/2 font-semibold text-[#4A5568]">Recommended Selling Price Per Unit:</span>
+                    <span id="recommended-price" class="w-1/2 text-right text-green-700 font-bold text-xl">$0.00</span>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center mb-8">
+                <button id="save-spreadsheet-btn" class="bg-custom-blue hover:bg-custom-blue-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Save to Spreadsheet
+                </button>
+            </div>
+
+            <!-- Feedback section -->
+            <div class="mt-8 text-center text-sm text-[#6B7280]">
+                <p class="mt-2">If you find this website useful, please give me feedback :)</p>
+                <button id="feedback-btn" class="inline-block mt-4 bg-[#FFDD00] hover:bg-[#E0C000] text-[#333333] font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Please give me feedback
+                </button>
+            </div>
+
+            <div class="mt-8 text-center text-sm text-[#6B7280]">
+                <p class="mt-2 text-gray-600 text-xs">Disclaimer: This calculator focuses on direct production costs (ingredients, labor, packaging). The "Overhead (%)" is an estimation of other operational costs such as utilities, taxes, marketing, rent, or administrative expenses.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-feedback-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-2 text-center">What are your experience with this tool?</h2>
+            <p class="mb-4 text-center text-sm text-[#6B7280]">Your feedback will help me improve this tool for bakers around the world :)</p>
+            <textarea id="feedback-text" class="w-full p-2 mb-4 border border-gray-300 rounded-md h-32" placeholder="Type your feedback here..."></textarea>
+            
+            <div class="text-left mb-4">
+                <label class="inline-flex items-center">
+                    <input type="checkbox" id="participate-call-checkbox" class="form-checkbox h-5 w-5 text-gray-600">
+                    <span class="ml-2 text-gray-700 text-sm">Hi! I’m Mai, an HCDE grad student at UW. I’ve added new features like order tracking and sales overview. Want to try it out? Just check the box and drop your email!</span>
+                </label>
+                <input type="email" id="contact-email" class="w-full p-2 mt-2 border border-gray-300 rounded-md" placeholder="Your email" style="display: none;">
+            </div>
+
+            <button id="submit-feedback-btn" class="bg-custom-blue hover:bg-custom-blue-dark text-white font-bold py-2 px-4 rounded-lg">Submit Feedback</button>
+            <div id="feedback-status-message" class="mt-4 text-sm font-semibold"></div>
+        </div>
+    </div>
+
+    <!-- General Disclaimer Modal -->
+    <div id="general-disclaimer-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-general-disclaimer-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">General Disclaimer</h2>
+            <p class="mb-4">The Ingredient Cost Calculator provided on this website is intended for informational and estimation purposes only. All calculations are based solely on the data input by the user and should not be considered professional financial, accounting, or business advice. Actual costs, profits, and market prices may vary significantly due to factors including but not limited to supplier pricing changes, ingredient quality, labor efficiency, operational overheads (beyond the estimated percentage), taxes, marketing expenses, and market fluctuations. Users are strongly advised to consult with qualified financial, accounting, or business professionals for specific advice tailored to their individual circumstances. We make no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability, or availability with respect to the website or the information, products, services, or related graphics contained on the website for any purpose. Any reliance you place on such information is therefore strictly at your own risk.</p>
+        </div>
+    </div>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacy-policy-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-privacy-policy-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">Privacy Policy</h2>
+            <p class="mb-2">This Privacy Policy describes how BakerPal collects, uses, and discloses your personal information when you use our Ingredient Cost Calculator.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Information We Collect</h3>
+            <ul class="list-disc list-inside mb-4">
+                <li><strong>Feedback Text:</strong> The comments and suggestions you provide.</li>
+                <li><strong>Timestamp:</strong> The date and time of your submission.</li>
+                <li><strong>Participation in Call (Yes/No):</strong> Your indication of whether you are interested in participating in a Zoom call.</li>
+                <li><strong>Contact Email:</strong> If you opt-in to the call, you may provide your email address.</li>
+            </ul>
+            <h3 class="text-lg font-semibold mt-4 mb-2">How We Use Your Information</h3>
+            <p class="mb-2">We use the collected information for the following purposes:</p>
+            <ul class="list-disc list-inside mb-4">
+                <li>To understand user experience and improve the Ingredient Cost Calculator.</li>
+                <li>To contact you if you have expressed interest in participating in a Zoom call.</li>
+                <li>For the development of the future product concept relating to the bakery businesses.</li>
+            </ul>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Data Storage and Sharing</h3>
+            <p class="mb-2">Your feedback data is stored in a Google Sheet. Access to this Google Sheet is restricted to Mai (the developer) and is not shared with any other third parties, except as required by law. We do not sell your personal information.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Data Security</h3>
+            <p class="mb-2">We take reasonable measures to protect the information collected through the tool. However, no method of transmission over the Internet or method of electronic storage is 100% secure.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Your Choices</h3>
+            <p class="mb-2">Providing feedback and contact information is entirely voluntary. You can choose not to submit feedback or not to provide your email address.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">Contact Us</h3>
+            <p class="mb-2">If you have any questions about this Privacy Policy, please contact Mai at <a href="mailto:maikana@uw.edu" class="text-blue-600 hover:underline">maikana@uw.edu</a>.</p>
+        </div>
+    </div>
+
+    <!-- Terms of Service Modal -->
+    <div id="terms-of-service-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-terms-of-service-modal">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center">Terms of Service</h2>
+            <p class="mb-2">Welcome to the Ingredient Cost Calculator! These Terms of Service govern your use of this tool.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">1. Acceptance of Terms</h3>
+            <p class="mb-2">By accessing and using this tool, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use this tool.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">2. Use of the Tool</h3>
+            <p class="mb-2">This tool is provided for your personal, non-commercial use to assist in estimating recipe costs. You agree to use the tool only for lawful purposes and in a way that does not infringe the rights of, restrict, or inhibit anyone else's use and enjoyment of the tool.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">3. Accuracy of Information</h3>
+            <p class="mb-2">While we strive for accuracy, we do not guarantee the completeness, reliability, or accuracy of any calculations or information generated by the tool. The tool relies on user-provided data, and results are estimates.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">4. Intellectual Property</h3>
+            <p class="mb-2">All content, features, and functionality of this tool, including but not limited to text, graphics, logos, and software, are the exclusive property of BakerPal and are protected by copyright and other intellectual property laws.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">5. User-Provided Content (Feedback)</h3>
+            <p class="mb-2">Any feedback, suggestions, or other content you submit through the tool becomes the property of BakerPal and may be used for tool improvement or academic purposes. You grant us a perpetual, irrevocable, worldwide, royalty-free license to use, reproduce, modify, adapt, publish, translate, create derivative works from, distribute, and display such content.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">6. Limitation of Liability</h3>
+            <p class="mb-2">In no event shall BakerPal be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the tool; (ii) any conduct or content of any third party on the tool; (iii) any content obtained from the tool; and (iv) unauthorized access, use, or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence), or any other legal theory, whether or not we have been informed of the possibility of such damage.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">7. Changes to Terms</h3>
+            <p class="mb-2">We reserve the right to modify or replace these Terms at any time. Your continued use of the tool after any such changes constitutes your acceptance of the new Terms.</p>
+            <h3 class="text-lg font-semibold mt-4 mb-2">8. Governing Law</h3>
+            <p class="mb-2">These Terms shall be governed and construed in accordance with the laws of the State of Washington, USA, without regard to its conflict of law provisions.</p>
+        </div>
+    </div>
+
+    <footer class="w-full py-4 px-8 bg-white text-gray-600 text-sm flex flex-col sm:flex-row justify-between items-center mt-8 rounded-xl shadow-lg">
+        <div class="mb-2 sm:mb-0">
+            BakerPal 2025 | All rights reserved
+        </div>
+        <div>
+            <a href="#" id="open-general-disclaimer-modal" class="footer-link">Disclaimer</a>
+            <a href="#" id="open-privacy-policy-modal" class="footer-link">Privacy Policy</a>
+            <a href="#" id="open-terms-of-service-modal" class="footer-link">Terms of Service</a>
+        </div>
+    </footer>
+
+    <script type="module">
+        // The URL of your deployed Google Apps Script Web App
+        // IMPORTANT: REPLACE THIS WITH YOUR ACTUAL DEPLOYED GOOGLE APPS SCRIPT URL
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmx_XYz0otmmzHSk28fntTXbRXJOhxJ7OjK3_bEK33P5gv4Euxw2eD_tarX9MRJf1C/exec";
+
+
+        // Initial data for ingredients (starts empty for user input)
+        const ingredients = []; // Start with an empty array
+
+        // Standard US measurement units for dropdown
+        const usUnits = [
+            'per lb', 'per oz', 'per cup', 'per tsp', 'per tbsp', 'per gallon', 'per quart', 'per pint', 'per piece', 'each'
+        ];
+
+        // Define constant for ounces per pound
+        const OZ_PER_LB = 16;
+
+        // Get elements for recipe details
+        const recipeNameInput = document.getElementById('recipe-name');
+        const recipeYieldInput = document.getElementById('recipe-yield');
+
+        // Get elements for ingredient table
+        const ingredientTableBody = document.getElementById('ingredient-table-body');
+        const addIngredientBtn = document.getElementById('add-ingredient-btn');
+        const saveSpreadsheetBtn = document.getElementById('save-spreadsheet-btn');
+
+        // Get elements for cost summary
+        const ingredientCostPerYieldElement = document.getElementById('ingredient-cost-per-yield');
+        const ingredientCostPerLoafElement = document.getElementById('ingredient-cost-per-loaf');
+        const labourUnitCostInput = document.getElementById('labour-unit-cost');
+        const labourUnitTypeInput = document.getElementById('labour-unit-type');
+        const labourQuantityUsedInput = document.getElementById('labour-quantity-used');
+        const labourCostElement = document.getElementById('labour-cost');
+        const labourForTotalQuantityElement = document.getElementById('labour-for-total-quantity');
+        const packagingUnitCostInput = document.getElementById('packaging-unit-cost');
+        const packagingUnitTypeInput = document.getElementById('packaging-unit-type');
+        const packagingQuantityUsedInput = document.getElementById('packaging-quantity-used');
+        const packagingCostElement = document.getElementById('packaging-cost');
+        const overheadPercentageInput = document.getElementById('overhead-percentage');
+        const overheadCostElement = document.getElementById('overhead-cost');
+        const totalCostSummaryElement = document.getElementById('total-cost-summary');
+        const costPerUnitElement = document.getElementById('cost-per-unit');
+
+        // Get elements for pricing & profit section
+        const profitMarginInput = document.getElementById('profit-margin');
+        const recommendedPriceElement = document.getElementById('recommended-price');
+
+        // Get elements for Feedback modal
+        const feedbackBtn = document.getElementById('feedback-btn');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const closeFeedbackModalBtn = document.getElementById('close-feedback-modal');
+        const feedbackTextArea = document.getElementById('feedback-text');
+        const submitFeedbackBtn = document.getElementById('submit-feedback-btn');
+        const feedbackStatusMessage = document.getElementById('feedback-status-message');
+        const participateCallCheckbox = document.getElementById('participate-call-checkbox');
+        const contactEmailInput = document.getElementById('contact-email');
+
+        // Get elements for new policy modals
+        const generalDisclaimerModal = document.getElementById('general-disclaimer-modal');
+        const closeGeneralDisclaimerModalBtn = document.getElementById('close-general-disclaimer-modal');
+        const openGeneralDisclaimerModalBtn = document.getElementById('open-general-disclaimer-modal');
+
+        const privacyPolicyModal = document.getElementById('privacy-policy-modal');
+        const closePrivacyPolicyModalBtn = document.getElementById('close-privacy-policy-modal');
+        const openPrivacyPolicyModalBtn = document.getElementById('open-privacy-policy-modal');
+
+        const termsOfServiceModal = document.getElementById('terms-of-service-modal');
+        const closeTermsOfServiceModalBtn = document.getElementById('close-terms-of-service-modal');
+        const openTermsOfServiceModalBtn = document.getElementById('open-terms-of-service-modal');
+
+
+        /**
+         * Renders the ingredient table rows and attaches event listeners.
+         */
+        function renderTable() {
+            ingredientTableBody.innerHTML = ''; // Clear existing rows
+            // If no ingredients, add one empty row to start
+            if (ingredients.length === 0) {
+                addIngredient(); // Add a default empty row if the array is empty
+            }
+
+            ingredients.forEach((ingredient, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50'; // Tailwind class for hover effect
+
+                // Cost per Recipe (Ingredient) = Unit Cost * Quantity Used
+                const costPerRecipeIngredient = ingredient.unitCost * ingredient.quantityUsed;
+
+                // Create options for the unit type dropdown
+                const unitOptions = usUnits.map(unit =>
+                    `<option value="${unit}" ${ingredient.unitType === unit ? 'selected' : ''}>${unit}</option>`
+                ).join('');
+
+                row.innerHTML = `
+                    <td class="p-3 sm:p-4 border-b border-gray-200">
+                        <input type="text" id="ingredient-name-${index}" value="${ingredient.name}"
+                               class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                               placeholder="Ingredient Name">
+                    </td>
+                    <td class="p-3 sm:p-4 border-b border-gray-200">
+                        <input type="number" id="ingredient-unit-cost-${index}" value="${ingredient.unitCost}"
+                               class="w-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                               min="0" step="0.001">
+                    </td>
+                    <td class="p-3 sm:p-4 border-b border-gray-200">
+                        <select id="ingredient-unit-type-${index}"
+                                class="w-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]">
+                            ${unitOptions}
+                        </select>
+                    </td>
+                    <td class="p-3 sm:p-4 border-b border-gray-200">
+                        <input type="number" id="ingredient-quantity-used-${index}" value="${ingredient.quantityUsed}"
+                               class="w-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BDE0FE]"
+                               min="0" step="0.01">
+                    </td>
+                    <td id="ingredient-cost-per-recipe-${index}" class="p-3 sm:p-4 border-b border-gray-200">$${costPerRecipeIngredient.toFixed(2)}</td>
+                `;
+                ingredientTableBody.appendChild(row);
+
+                // Add event listeners to update calculations on input change
+                document.getElementById(`ingredient-name-${index}`).addEventListener('input', (event) => {
+                    ingredients[index].name = event.target.value;
+                });
+                document.getElementById(`ingredient-unit-cost-${index}`).addEventListener('input', (event) => {
+                    ingredients[index].unitCost = parseFloat(event.target.value) || 0;
+                    updateCalculations();
+                });
+                // Event listener for the new select dropdown
+                document.getElementById(`ingredient-unit-type-${index}`).addEventListener('change', (event) => {
+                    ingredients[index].unitType = event.target.value;
+                });
+                document.getElementById(`ingredient-quantity-used-${index}`).addEventListener('input', (event) => {
+                    ingredients[index].quantityUsed = parseFloat(event.target.value) || 0;
+                    updateCalculations();
+                });
+            });
+            updateCalculations(); // Initial calculation after rendering
+        }
+
+        /**
+         * Adds a new blank ingredient to the list and re-renders the table.
+         */
+        function addIngredient() {
+            ingredients.push({ name: '', unitCost: 0, unitType: 'per lb', quantityUsed: 0 }); // Default to 'per lb'
+            renderTable(); // Re-render to show the new row
+        }
+
+        // Add event listener for the "Add Ingredient" button
+        addIngredientBtn.addEventListener('click', addIngredient);
+        // Add event listener for the "Save to Spreadsheet" button
+        saveSpreadsheetBtn.addEventListener('click', saveToSpreadsheet);
+
+
+        // Add event listeners for recipe details and other cost inputs
+        recipeNameInput.addEventListener('input', updateCalculations);
+        recipeYieldInput.addEventListener('input', updateCalculations);
+        labourUnitCostInput.addEventListener('input', updateCalculations);
+        labourUnitTypeInput.addEventListener('input', updateCalculations);
+        labourQuantityUsedInput.addEventListener('input', updateCalculations);
+        packagingUnitCostInput.addEventListener('input', updateCalculations);
+        packagingUnitTypeInput.addEventListener('input', updateCalculations); // Typo fixed here
+        packagingQuantityUsedInput.addEventListener('input', updateCalculations);
+        overheadPercentageInput.addEventListener('input', updateCalculations);
+        // Add event listener for profit margin input
+        profitMarginInput.addEventListener('input', updateCalculations);
+
+
+        /**
+         * Updates all total costs and the grand total.
+         */
+        function updateCalculations() {
+            const recipeYield = parseFloat(recipeYieldInput.value) || 1; // Ensure yield is at least 1 to avoid division by zero
+
+            let totalIngredientCostPerYield = 0;
+            ingredients.forEach((ingredient, index) => {
+                const costPerRecipeIngredient = ingredient.unitCost * ingredient.quantityUsed;
+                document.getElementById(`ingredient-cost-per-recipe-${index}`).textContent = `$${costPerRecipeIngredient.toFixed(2)}`;
+                totalIngredientCostPerYield += costPerRecipeIngredient;
+            });
+
+            ingredientCostPerYieldElement.textContent = `$${totalIngredientCostPerYield.toFixed(2)}`;
+
+            const ingredientCostPerUnit = totalIngredientCostPerYield / recipeYield;
+            ingredientCostPerLoafElement.textContent = `$${ingredientCostPerUnit.toFixed(2)}`;
+
+            // Labour Calculation
+            const labourUnitCost = parseFloat(labourUnitCostInput.value) || 0;
+            const labourQuantityUsed = parseFloat(labourQuantityUsedInput.value) || 0;
+            const labourCost = labourUnitCost * labourQuantityUsed; // Total labour cost for the recipe yield
+            labourCostElement.textContent = `$${labourCost.toFixed(2)}`;
+
+            const labourForTotalQuantity = labourCost / recipeYield; // Labour cost per unit of yield
+            labourForTotalQuantityElement.textContent = `$${labourForTotalQuantity.toFixed(4)}`;
+
+            // Packaging Calculation
+            const packagingUnitCost = parseFloat(packagingUnitCostInput.value) || 0;
+            const packagingQuantityUsed = parseFloat(packagingQuantityUsedInput.value) || 0;
+            const packagingCost = packagingUnitCost * packagingQuantityUsed; // Total packaging cost for the recipe yield
+            packagingCostElement.textContent = `$${packagingCost.toFixed(5)}`;
+
+            // Calculate Base Cost (ingredients + labour + packaging) BEFORE overhead
+            const baseCostBeforeOverhead = totalIngredientCostPerYield + labourCost + packagingCost;
+
+            // Overhead Calculation
+            const overheadPercentage = parseFloat(overheadPercentageInput.value) || 0;
+            let totalCostWithOverhead = 0;
+            let overheadAmount = 0;
+
+            if (overheadPercentage >= 0 && overheadPercentage < 100) {
+                // If overhead is X% of Total Cost, then Total Cost = Base Cost / (1 - X%)
+                totalCostWithOverhead = baseCostBeforeOverhead / (1 - (overheadPercentage / 100));
+                overheadAmount = totalCostWithOverhead * (overheadPercentage / 100);
+            } else if (overheadPercentage >= 100) {
+                // Handle cases where overhead percentage is 100% or more, leading to division by zero or negative
+                totalCostWithOverhead = Infinity;
+                overheadAmount = Infinity;
+            } else { // Negative percentage
+                totalCostWithOverhead = baseCostBeforeOverhead; // No overhead applied
+                overheadAmount = 0;
+            }
+
+            overheadCostElement.textContent = `$${overheadAmount.toFixed(2)}`;
+            totalCostSummaryElement.textContent = `$${totalCostWithOverhead.toFixed(2)}`;
+
+            // Cost Per Unit (Total Cost / Recipe Yield)
+            const costPerUnit = totalCostWithOverhead / recipeYield;
+            costPerUnitElement.textContent = `$${costPerUnit.toFixed(2)}`;
+
+            // Pricing & Profit Calculation
+            const profitMargin = parseFloat(profitMarginInput.value) || 0;
+            let recommendedPrice = 0;
+            if (costPerUnit > 0 && profitMargin >= 0 && profitMargin < 100) { // Ensure profit margin is less than 100%
+                // Formula: Cost Per Unit / (1 - (Profit Margin / 100))
+                // This calculates the selling price needed to achieve the desired profit margin
+                recommendedPrice = costPerUnit / (1 - (profitMargin / 100));
+            } else if (profitMargin >= 100) {
+                recommendedPrice = Infinity; // Or a very large number to indicate unrealistic margin
+            }
+            recommendedPriceElement.textContent = `$${recommendedPrice.toFixed(2)}`;
+        }
+
+        /**
+         * Function to save the calculator content as a CSV spreadsheet.
+         */
+        function saveToSpreadsheet() {
+            const recipeName = recipeNameInput.value.trim() || 'Untitled Recipe';
+            const filename = `${recipeName.replace(/\s+/g, '_')}_Cost_Analysis.csv`;
+
+            let csvContent = "";
+
+            // Helper to escape CSV values (handle commas, quotes)
+            const escapeCsv = (value) => {
+                if (value === null || value === undefined) return '';
+                let stringValue = String(value);
+                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                    return `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+            };
+
+            // Recipe Details
+            csvContent += escapeCsv("Recipe Details") + "\n";
+            csvContent += escapeCsv("Recipe Name") + "," + escapeCsv(recipeNameInput.value) + "\n";
+            csvContent += escapeCsv("Recipe Yield") + "," + escapeCsv(recipeYieldInput.value) + "\n\n";
+
+            // Ingredients
+            csvContent += escapeCsv("Ingredients") + "\n";
+            csvContent += escapeCsv("Ingredient") + "," + escapeCsv("Unit Cost") + "," + escapeCsv("Unit Type") + "," + escapeCsv("Quantity Used") + "," + escapeCsv("Cost per Recipe (Ingredient)") + "\n";
+            ingredients.forEach(ingredient => {
+                const costPerRecipeIngredient = ingredient.unitCost * ingredient.quantityUsed;
+                csvContent += escapeCsv(ingredient.name) + "," + escapeCsv(ingredient.unitCost.toFixed(3)) + "," + escapeCsv(ingredient.unitType) + "," + escapeCsv(ingredient.quantityUsed) + "," + escapeCsv(costPerRecipeIngredient.toFixed(2)) + "\n";
+            });
+            csvContent += "\n"; // Blank line for separation
+
+            // Cost Summary
+            csvContent += escapeCsv("Cost Summary") + "\n";
+            csvContent += escapeCsv("Ingredient Cost Per Yield") + "," + escapeCsv(ingredientCostPerYieldElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Ingredient Cost Per Unit") + "," + escapeCsv(ingredientCostPerLoafElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Labour Unit Cost") + "," + escapeCsv(labourUnitCostInput.value) + "\n";
+            csvContent += escapeCsv("Labour Unit Type") + "," + escapeCsv(labourUnitTypeInput.value) + "\n";
+            csvContent += escapeCsv("Labour Quantity Used") + "," + escapeCsv(labourQuantityUsedInput.value) + "\n";
+            csvContent += escapeCsv("Labour Cost") + "," + escapeCsv(labourCostElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Labour Cost per Unit") + "," + escapeCsv(labourForTotalQuantityElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Packaging Unit Cost") + "," + escapeCsv(packagingUnitCostInput.value) + "\n";
+            csvContent += escapeCsv("Packaging Unit Type") + "," + escapeCsv(packagingUnitTypeInput.value) + "\n";
+            csvContent += escapeCsv("Packaging Quantity Used") + "," + escapeCsv(packagingQuantityUsedInput.value) + "\n";
+            csvContent += escapeCsv("Packaging Cost") + "," + escapeCsv(packagingCostElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Overhead (%)") + "," + escapeCsv(overheadPercentageInput.value) + "\n";
+            csvContent += escapeCsv("Overhead Cost") + "," + escapeCsv(overheadCostElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Total Cost") + "," + escapeCsv(totalCostSummaryElement.textContent.replace('$', '')) + "\n";
+            csvContent += escapeCsv("Cost Per Unit") + "," + escapeCsv(costPerUnitElement.textContent.replace('$', '')) + "\n\n";
+
+            // Pricing & Profit
+            csvContent += escapeCsv("Pricing & Profit") + "\n";
+            csvContent += escapeCsv("Desired Profit Margin (%)") + "," + escapeCsv(profitMarginInput.value) + "\n";
+            csvContent += escapeCsv("Recommended Selling Price Per Unit") + "," + escapeCsv(recommendedPriceElement.textContent.replace('$', '')) + "\n\n";
+
+            // Create a Blob from the CSV content
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // Create a link element and trigger the download
+            const link = document.createElement('a');
+            if (link.download !== undefined) { // Feature detection for download attribute
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                // Fallback for browsers that don't support the download attribute
+                alert('Your browser does not support automatic file downloads. Please copy the content below and paste it into a text file, then save as .csv:\n\n' + csvContent);
+            }
+        }
+
+        // --- Feedback Modal Functions ---
+        feedbackBtn.addEventListener('click', () => {
+            feedbackModal.style.display = 'flex'; // Show the modal
+            feedbackTextArea.value = ''; // Clear previous feedback
+            feedbackStatusMessage.textContent = ''; // Clear status message
+            participateCallCheckbox.checked = false; // Reset checkbox
+            contactEmailInput.value = ''; // Clear email input
+            contactEmailInput.style.display = 'none'; // Hide email input
+        });
+
+        closeFeedbackModalBtn.addEventListener('click', () => {
+            feedbackModal.style.display = 'none'; // Hide the modal
+        });
+
+        // Close the modal if user clicks outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target == feedbackModal) {
+                feedbackModal.style.display = 'none';
+            }
+        });
+
+        // Toggle email input visibility based on checkbox
+        participateCallCheckbox.addEventListener('change', () => {
+            if (participateCallCheckbox.checked) {
+                contactEmailInput.style.display = 'block';
+            } else {
+                contactEmailInput.style.display = 'none';
+                contactEmailInput.value = ''; // Clear email if unchecked
+            }
+        });
+
+        submitFeedbackBtn.addEventListener('click', async () => { // Made async
+            const feedbackText = feedbackTextArea.value.trim();
+            if (!feedbackText) {
+                feedbackStatusMessage.style.color = 'red';
+                feedbackStatusMessage.textContent = "Please type your feedback before submitting.";
+                return;
+            }
+
+            // Check if checkbox is checked and email is empty
+            if (participateCallCheckbox.checked && contactEmailInput.value.trim() === '') {
+                feedbackStatusMessage.style.color = 'red';
+                feedbackStatusMessage.textContent = "Please enter your email if you wish to participate in the call.";
+                return;
+            }
+
+
+            feedbackStatusMessage.style.color = 'blue';
+            feedbackStatusMessage.textContent = "Submitting feedback...";
+
+            const timestamp = new Date().toLocaleString();
+            const participateInCall = participateCallCheckbox.checked ? "Yes" : "No";
+            const contactEmail = participateCallCheckbox.checked ? contactEmailInput.value.trim() : "";
+
+            const feedbackData = {
+                Timestamp: timestamp,
+                Feedback: feedbackText,
+                ParticipateInCall: participateInCall,
+                ContactEmail: contactEmail
+            };
+
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Required for Google Apps Script to avoid CORS preflight issues
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(feedbackData),
+                });
+
+                console.log("Feedback submission response:", response); // For debugging
+
+                feedbackStatusMessage.style.color = 'green';
+                feedbackStatusMessage.textContent = "Thank you for your feedback! It has been submitted.";
+                feedbackTextArea.value = ''; // Clear textarea after successful submission
+                participateCallCheckbox.checked = false; // Reset checkbox
+                contactEmailInput.value = ''; // Clear email input
+                contactEmailInput.style.display = 'none'; // Hide email input
+                setTimeout(() => { feedbackModal.style.display = 'none'; }, 2000);
+
+            } catch (error) {
+                console.error("Error submitting feedback:", error);
+                feedbackStatusMessage.style.color = 'red';
+                feedbackStatusMessage.textContent = `Error submitting feedback: ${error.message}. Please try again.`;
+            }
+        });
+
+        // Helper to escape CSV values (moved here for submitFeedback to use)
+        function escapeCsv(value) {
+            if (value === null || value === undefined) return '';
+            let stringValue = String(value);
+            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+        }
+
+        // --- Policy Modal Functions ---
+        openGeneralDisclaimerModalBtn.addEventListener('click', () => {
+            generalDisclaimerModal.style.display = 'flex';
+        });
+        closeGeneralDisclaimerModalBtn.addEventListener('click', () => {
+            generalDisclaimerModal.style.display = 'none';
+        });
+        openPrivacyPolicyModalBtn.addEventListener('click', () => {
+            privacyPolicyModal.style.display = 'flex';
+        });
+        closePrivacyPolicyModalBtn.addEventListener('click', () => {
+            privacyPolicyModal.style.display = 'none';
+        });
+        openTermsOfServiceModalBtn.addEventListener('click', () => {
+            termsOfServiceModal.style.display = 'flex';
+        });
+        closeTermsOfServiceModalBtn.addEventListener('click', () => {
+            termsOfServiceModal.style.display = 'none';
+        });
+
+        // Close any modal if user clicks outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target == generalDisclaimerModal) {
+                generalDisclaimerModal.style.display = 'none';
+            }
+            if (event.target == privacyPolicyModal) {
+                privacyPolicyModal.style.display = 'none';
+            }
+            if (event.target == termsOfServiceModal) {
+                termsOfServiceModal.style.display = 'none';
+            }
+        });
+
+
+        // Render the table when the window loads
+        window.addEventListener('load', renderTable);
+    </script>
+</body>
+</html>
